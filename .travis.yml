@@ -1,0 +1,65 @@
+sudo: required
+language: python
+
+services:
+  - docker
+cache: pip
+
+# script:
+#   # It is time to run FreeIPA tests with new Dogtag RPMS built
+#   - echo 'test stage'
+
+jobs:
+    include:
+      - env: 
+          TASK_TO_RUN="pki-test"
+        before_install: 
+          - set -a
+          - source .travis_global_variables
+        
+        script:
+          - echo -e $gerrit_ssh_key >> ~/.ssh/id_rsa
+          - chmod 600 ~/.ssh/id_rsa
+        # The errors can be in either dogtag container or freeipa container
+        after_script:
+          - echo "Uploading CI Logs to transfer.sh ..." >> test.log
+          - BUILD_LOG="$(curl --upload-file ./test.log https://transfer.sh/build_logs.txt)"
+          - BUILD_LOG="${BUILD_LOG}"$'\n'"https://dummy.com"
+          - MESSAGE="Build Failed"$'\n'"${BUILD_LOG}"
+          - > 
+            ssh -p 29418 pki-jenkins-bot@review.gerrithub.io
+            -o StrictHostKeyChecking=no
+            gerrit review 41d294342498821f0841147f0e621d3b9195bb57
+            --verified -1 
+            --message "'${MESSAGE}'"
+
+      - env: 
+          TASK_TO_RUN="ipa-test"
+        before_install: 
+          - set -a
+          - source .travis_global_variables
+      
+        script:
+          - echo 'script'
+
+        after_script:
+          - echo 'Cleaning up'
+          - echo ${DOGTAG_PKI_RPMS}
+        
+        # The errors can be in either dogtag container or freeipa container
+        after_failure:
+          - echo "Uploading CI Logs to transfer.sh ..." >> test.log
+          - echo $BUILD_LOG
+
+      - stage: Verification Label
+        script: 
+          - echo -e $gerrit_ssh_key >> ~/.ssh/id_rsa
+          - chmod 600 ~/.ssh/id_rsa
+          - > 
+            ssh -p 29418 pki-jenkins-bot@review.gerrithub.io
+            -o StrictHostKeyChecking=no
+            gerrit review 41d294342498821f0841147f0e621d3b9195bb57
+            --verified +1 
+            --message "'Build\ 
+            Successful.'"
+
