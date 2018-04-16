@@ -23,15 +23,6 @@ jobs:
         # The errors can be in either dogtag container or freeipa container
         after_script:
           - echo "Uploading CI Logs to transfer.sh ..." >> test.log
-          - BUILD_LOG="$(curl --upload-file ./test.log https://transfer.sh/build_logs.txt)"
-          - BUILD_LOG="${BUILD_LOG}"$'\n'"https://dummy.com"
-          - MESSAGE="Build Failed"$'\n'"${BUILD_LOG}"
-          - > 
-            ssh -p 29418 pki-jenkins-bot@review.gerrithub.io
-            -o StrictHostKeyChecking=no
-            gerrit review 41d294342498821f0841147f0e621d3b9195bb57
-            --verified -1 
-            --message "'${MESSAGE}'"
 
       - env: 
           TASK_TO_RUN="ipa-test"
@@ -58,8 +49,9 @@ jobs:
           - > 
             ssh -p 29418 pki-jenkins-bot@review.gerrithub.io
             -o StrictHostKeyChecking=no
-            gerrit review 41d294342498821f0841147f0e621d3b9195bb57
+            gerrit review ${TRAVIS_COMMIT}
             --verified +1 
-            --message "'Build\ 
-            Successful.'"
+            --message "'Build\ Successful.'"
+        after_script:
+          - ./.test_run.sh
 
